@@ -15,6 +15,7 @@ from spacy.lang.ja import Japanese
 from spacy.lang.zh import Chinese
 from tokenizers import Tokenizer
 
+from num_to_words import num_to_word
 from TTS.tts.layers.xtts.zh_num2words import TextNorm as zh_num2words
 
 
@@ -229,6 +230,18 @@ _abbreviations = {
             # Korean doesn't typically use abbreviations in the same way as Latin-based scripts.
         ]
     ],
+    "hi": [
+        (re.compile("\\b%s\\." % x[0], re.IGNORECASE), x[1])
+        for x in [
+            ("डॉ", "डॉक्टर"),
+            ("सं", "संवत्"),
+            ("प", "पृष्ठ"),
+            ("उदा", "उदाहरण"),
+            ("वि", "विद्यालय"),
+            ("कु", "कुमारी"),
+            ("संवि", "संविधान")
+        ]
+    ],
 }
 
 
@@ -425,6 +438,19 @@ _symbols_multilingual = {
             ("°", " 도 "),
         ]
     ],
+    "hi": [
+        (re.compile(r"%s" % re.escape(x[0]), re.IGNORECASE), x[1])
+        for x in [
+            ("&", " और "),
+            ("@", " एट "),
+            ("%", " प्रतिशत "),
+            ("#", " हैश "),
+            ("$", " डॉलर "),
+            ("£", " पाउंड "),
+            ("₹", " रुपए"),
+            ("°", " डिग्री "),
+        ]
+    ],
 }
 
 
@@ -450,12 +476,16 @@ _ordinal_re = {
     "tr": re.compile(r"([0-9]+)(\.|inci|nci|uncu|üncü|\.)"),
     "hu": re.compile(r"([0-9]+)(\.|adik|edik|odik|edik|ödik|ödike|ik)"),
     "ko": re.compile(r"([0-9]+)(번째|번|차|째)"),
+    "hi": re.compile(r"([0-9]+)(वें|वां|री|रा|रीं|ठा|ठी|ठे)"),
 }
 _number_re = re.compile(r"[0-9]+")
 _currency_re = {
     "USD": re.compile(r"((\$[0-9\.\,]*[0-9]+)|([0-9\.\,]*[0-9]+\$))"),
     "GBP": re.compile(r"((£[0-9\.\,]*[0-9]+)|([0-9\.\,]*[0-9]+£))"),
     "EUR": re.compile(r"(([0-9\.\,]*[0-9]+€)|((€[0-9\.\,]*[0-9]+)))"),
+    "INR": re.compile(r"((₹[0-9\.\,]*[0-9]+)|([0-9\.\,]*[0-9]+₹))"),
+    "JPY": re.compile(r"((¥[0-9\.\,]*[0-9]+)|([0-9\.\,]*[0-9]+¥))"),
+    "KRW": re.compile(r"((₩[0-9\.\,]*[0-9]+)|([0-9\.\,]*[0-9]+₩))"),
 }
 
 _comma_number_re = re.compile(r"\b\d{1,3}(,\d{3})*(\.\d+)?\b")
@@ -478,8 +508,13 @@ def _remove_dots(m):
 
 
 def _expand_decimal_point(m, lang="en"):
-    amount = m.group(1).replace(",", ".")
-    return num2words(float(amount), lang=lang if lang != "cs" else "cz")
+    whole, decimal = m.group(1).replace(",", ".").split(".")
+    if lang == "hi":
+        whole_word = num_to_word(int(whole), lang=lang)
+        decimal_word = num_to_word(int(decimal), lang=lang)
+        return f"{whole_word} दशमलव {decimal_word}"
+    else:
+        return num2words(float(m.group(1).replace(",", ".")), lang=lang if lang != "cs" else "cz")
 
 
 def _expand_currency(m, lang="en", currency="USD"):
@@ -501,6 +536,7 @@ def _expand_currency(m, lang="en", currency="USD"):
         "tr": ", ",
         "hu": ", ",
         "ko": ", ",
+        "hi": ", ",
     }
 
     if amount.is_integer():
@@ -512,11 +548,17 @@ def _expand_currency(m, lang="en", currency="USD"):
 
 
 def _expand_ordinal(m, lang="en"):
-    return num2words(int(m.group(1)), ordinal=True, lang=lang if lang != "cs" else "cz")
+    if lang == "hi":
+        return num_to_word(int(m.group(1)), lang=lang)
+    else:
+        return num2words(int(m.group(1)), ordinal=True, lang=lang if lang != "cs" else "cz")
 
 
 def _expand_number(m, lang="en"):
-    return num2words(int(m.group(0)), lang=lang if lang != "cs" else "cz")
+    if lang == "hi":
+        return num_to_word(int(m.group(0)), lang=lang)
+    else:
+        return num2words(int(m.group(0)), lang=lang if lang != "cs" else "cz")
 
 
 def expand_numbers_multilingual(text, lang="en"):
@@ -628,7 +670,7 @@ class VoiceBpeTokenizer:
             )
 
     def preprocess_text(self, txt, lang):
-        if lang in {"ar", "cs", "de", "en", "es", "fr", "hu", "it", "nl", "pl", "pt", "ru", "tr", "zh", "ko"}:
+        if lang in {"ar", "cs", "de", "en", "es", "fr", "hu", "it", "nl", "pl", "pt", "ru", "tr", "zh", "ko", "hi"}:
             txt = multilingual_cleaners(txt, lang)
             if lang == "zh":
                 txt = chinese_transliterate(txt)
@@ -636,9 +678,6 @@ class VoiceBpeTokenizer:
                 txt = korean_transliterate(txt)
         elif lang == "ja":
             txt = japanese_cleaners(txt, self.katsu)
-        elif lang == "hi":
-            # @manmay will implement this
-            txt = basic_cleaners(txt)
         else:
             raise NotImplementedError(f"Language '{lang}' is not supported.")
         return txt
