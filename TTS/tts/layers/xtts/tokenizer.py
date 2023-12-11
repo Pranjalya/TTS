@@ -15,7 +15,7 @@ from spacy.lang.ja import Japanese
 from spacy.lang.zh import Chinese
 from tokenizers import Tokenizer
 
-from num_to_words import num_to_word
+from indic_numtowords import num2words as num_to_word
 from TTS.tts.layers.xtts.zh_num2words import TextNorm as zh_num2words
 
 
