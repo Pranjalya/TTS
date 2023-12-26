@@ -753,7 +753,8 @@ class Xtts(BaseTTS):
         Returns:
             None
         """
-
+        if not checkpoint_dir:
+            checkpoint_dir = "."
         model_path = checkpoint_path or os.path.join(checkpoint_dir, "model.pth")
         vocab_path = vocab_path or os.path.join(checkpoint_dir, "vocab.json")
         speaker_file_path = speaker_file_path or os.path.join(checkpoint_dir, "speakers_xtts.pth")
