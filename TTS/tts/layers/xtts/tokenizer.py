@@ -15,7 +15,7 @@ from spacy.lang.ja import Japanese
 from spacy.lang.zh import Chinese
 from tokenizers import Tokenizer
 
-from indic_numtowords import num2words as num_to_word
+from TTS.tts.layers.xtts.hi_num2words import num_to_word_hindi
 from TTS.tts.layers.xtts.zh_num2words import TextNorm as zh_num2words
 
 
@@ -510,8 +510,8 @@ def _remove_dots(m):
 def _expand_decimal_point(m, lang="en"):
     whole, decimal = m.group(1).replace(",", ".").split(".")
     if lang == "hi":
-        whole_word = num_to_word(int(whole), lang=lang)
-        decimal_word = num_to_word(int(decimal), lang=lang)
+        whole_word = num_to_word_hindi(int(whole))
+        decimal_word = num_to_word_hindi(int(decimal))
         return f"{whole_word} दशमलव {decimal_word}"
     else:
         return num2words(float(m.group(1).replace(",", ".")), lang=lang if lang != "cs" else "cz")
@@ -549,14 +549,14 @@ def _expand_currency(m, lang="en", currency="USD"):
 
 def _expand_ordinal(m, lang="en"):
     if lang == "hi":
-        return num_to_word(int(m.group(1)), lang=lang)
+        return num_to_word_hindi(int(m.group(1)))
     else:
         return num2words(int(m.group(1)), ordinal=True, lang=lang if lang != "cs" else "cz")
 
 
 def _expand_number(m, lang="en"):
     if lang == "hi":
-        return num_to_word(int(m.group(0)), lang=lang)
+        return num_to_word_hindi(int(m.group(0)))
     else:
         return num2words(int(m.group(0)), lang=lang if lang != "cs" else "cz")
 
